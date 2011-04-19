@@ -4,25 +4,39 @@ class Page < ActiveRecord::Base
 
   translates :title, :meta_keywords, :meta_description, :browser_title, :custom_title if self.respond_to?(:translates)
 
-  # Set up support for meta tags through translations.
-  if defined?(::Page::Translation) && ::Page::Translation.table_exists?
-    def translation
-      if @translation.nil? or @translation.try(:locale) != ::Globalize.locale
-        @translation = translations.with_locale(::Globalize.locale).first
-        @translation ||= translations.build(:locale => ::Globalize.locale)
-      end
+  attr_accessible :id, :deletable, :link_url, :menu_match, :meta_keywords,
+                  :skip_to_first_child, :position, :show_in_menu, :draft,
+                  :parts_attributes, :browser_title, :meta_description,
+                  :custom_title_type, :parent_id, :custom_title,
+                  :created_at, :updated_at, :page_id
 
-      @translation
+  # Set up support for meta tags through translations.
+  if defined?(::Page::Translation)
+    attr_accessible :title
+    # set allowed attributes for mass assignment
+    ::Page::Translation.module_eval do
+      attr_accessible :browser_title, :meta_description, :meta_keywords,
+                      :locale
     end
+    if ::Page::Translation.table_exists?
+      def translation
+        if @translation.nil? or @translation.try(:locale) != ::Globalize.locale
+          @translation = translations.with_locale(::Globalize.locale).first
+          @translation ||= translations.build(:locale => ::Globalize.locale)
+        end
+
+        @translation
+      end
 
     # Instruct the Translation model to have meta tags.
     ::Page::Translation.send :is_seo_meta
 
-    # Delegate all SeoMeta attributes to the active translation.
-    fields = ::SeoMeta.attributes.keys.map{|a| [a, :"#{a}="]}.flatten
-    fields << {:to => :translation}
-    delegate *fields
-    after_save proc {|m| m.translation.save}
+      # Delegate all SeoMeta attributes to the active translation.
+      fields = ::SeoMeta.attributes.keys.map{|a| [a, :"#{a}="]}.flatten
+      fields << {:to => :translation}
+      delegate *fields
+      after_save proc {|m| m.translation.save}
+    end
   end
 
   attr_accessor :locale # to hold temporarily
@@ -34,7 +48,8 @@ class Page < ActiveRecord::Base
   has_friendly_id :title, :use_slug => true,
                   :default_locale => (::Refinery::I18n.default_frontend_locale rescue :en),
                   :reserved_words => %w(index new session login logout users refinery admin images wymiframe),
-                  :approximate_ascii => RefinerySetting.find_or_set(:approximate_ascii, false, :scoping => "pages")
+                  :approximate_ascii => RefinerySetting.find_or_set(:approximate_ascii, false, :scoping => "pages"),
+                  :strip_non_ascii => RefinerySetting.find_or_set(:strip_non_ascii, false, :scoping => "pages")
 
   has_many :parts,
            :class_name => "PagePart",
@@ -299,7 +314,7 @@ class Page < ActiveRecord::Base
   # In the admin area we use a slightly different title to inform the which pages are draft or hidden pages
   def title_with_meta
     title = if self.title.nil?
-      [::Page::Translation.where(:page_id => self.id, :locale => Globalize.locale).first.title.to_s]
+      [::Page::Translation.where(:page_id => self.id, :locale => Globalize.locale).first.try(:title).to_s]
     else
       [self.title.to_s]
     end
