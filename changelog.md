@@ -1,3 +1,102 @@
+## 1.0.8 [1 September 2011]
+
+* `refinerycms-core` now depends on rails so that users of 1.0.x can be confident of the entire stack being present as before. [Philip Arndt](https://github.com/parndt)
+* No longer requiring autotest as a dependency of `refinerycms-testing`. [Philip Arndt](https://github.com/parndt)
+* Improved 'wrong rails version' error message on install with a more helpful guide on how to specify a rails version. [Philip Arndt](https://github.com/parndt)
+* [See full list](https://github.com/resolve/refinerycms/compare/1.0.7...1.0.8)
+
+## 1.0.7 [31 August 2011]
+
+* No change, just fixing corruption in the 1.0.6 gem caused by Syck. [Philip Arndt](https://github.com/parndt)
+* [See full list](https://github.com/resolve/refinerycms/compare/1.0.6...1.0.7)
+
+## 1.0.6 [31 August 2011]
+
+* Added support for Devise `~> 1.4.3`. [Philip Arndt](https://github.com/parndt)
+* Removed dependency on Rails but added dependencies to its components, like activerecord, where they are used. [Philip Arndt](https://github.com/parndt)
+* [See full list](https://github.com/resolve/refinerycms/compare/1.0.5...1.0.6)
+
+## 1.0.5 [31 August 2011]
+
+* jQuery UI updated to `1.8.15` from `1.8.9`. [Uģis Ozols](https://github.com/ugisozols)
+* Removed Duostack hosting option from the installer because the platform isn't online anymore. [Philip Arndt](https://github.com/parndt)
+* Fixed non raw output into noscript section of the backend. [Philip Arndt](https://github.com/parndt)
+* `will_paginate` updated to `~> 3.0.0` now that it has gone final. [Uģis Ozols](https://github.com/ugisozols)
+* [See full list](https://github.com/resolve/refinerycms/compare/1.0.4...1.0.5)
+
+## 1.0.4 [11 August 2011]
+
+* Added support for figuring out dimensions in resized images to `image_fu`. [Philip Arndt](https://github.com/parndt) and [Joe Sak](https://github.com/joemsak)
+* Fixed issues installing Refinery due to lack of permissions to the gem directories. [Philip Arndt](https://github.com/parndt)
+* Added ability to specify a different database host in the `bin/refinerycms` installer. [Philip Arndt](https://github.com/parndt)
+* Lock `will_paginate` to `3.0.pre2` in core gemspec. [Kris Forbes](https://github.com/krisf) and [Uģis Ozols](https://github.com/ugisozols)
+* Patch required_label helper so it would pick up I18n model attribute translations. [Uģis Ozols](https://github.com/ugisozols)
+* [See full list](https://github.com/resolve/refinerycms/compare/1.0.3...1.0.4)
+
+## 1.0.3 [23 June 2011]
+
+* Fixes corruption in the 1.0.2 gem. [Philip Arndt](https://github.com/parndt)
+* [See full list](https://github.com/resolve/refinerycms/compare/1.0.2...1.0.3)
+
+## 1.0.2 [23 June 2011]
+
+* Ensure that `refinerycms-testing` is not enabled by default when installing an application. [Philip Arndt](https://github.com/parndt)
+* [See full list](https://github.com/resolve/refinerycms/compare/1.0.1...1.0.2)
+
+## 1.0.1 [21 June 2011]
+
+* Added `-t` / `--testing` option to `bin/refinerycms` which adds `refinerycms-testing` support by default when installing. [Philip Arndt](https://github.com/parndt)
+* Set rails dependency to `~> 3.0.9`. [Philip Arndt](https://github.com/parndt)
+* Re-enabled the magic `s3_backend` setting controlled by `ENV` variables. [Philip Arndt](https://github.com/parndt)
+* `bin/refinerycms` installer now generates rails using `bundle exec` so that you can have multiple Rails versions installed and they won't clash. [Philip Arndt](https://github.com/parndt)
+* Fixed problems with `rcov` and `simplecov` in Ruby 1.9.2. [Joe Sak](https://github.com/joemsak)
+* Make the catch-all pages route for marketable URLs be controlled by the configuration switch. [Kyle Wilkinson](https://github.com/wikyd)
+* [See full list](https://github.com/resolve/refinerycms/compare/1.0.0...1.0.1)
+
+## 1.0.0 [28 May 2011]
+
+* New `::Refinery::Menu` API implemented which speeds up menu generation by many times. [Philip Arndt](https://github.com/parndt)
+* Removed caching from menu because it's so much faster now. Probably in future it will be added to `::Refinery::Menu` itself in a transparent manner. [Philip Arndt](https://github.com/parndt)
+* Deprecated `Page#[]` in favour of `Page#content_for` e.g. instead of `@page[:body]` use `@page.content_for(:body)`. [Philip Arndt](https://github.com/parndt)
+* Noisily deprecated many other features that still function in 1.0.0 but won't be present in 1.1.0. [Philip Arndt](https://github.com/parndt)
+* A hidden page can no longer mark the ancestor pages as selected in the menu. [Philip Arndt](https://github.com/parndt)
+* Rcov added to `refinerycms-testing` gem. [Rodrigo Dominguez](https://github.com/rorra)
+* [See full list](https://github.com/resolve/refinerycms/compare/0.9.9.22...1.0.0)
+
+## 0.9.9.22 [22 May 2011]
+
+* Fixed issue introduced with `rake 0.9.0`. [Philip Arndt](https://github.com/parndt)
+* Improved menu performance again including update to `awesome_nested_set 2.0`. [Philip Arndt](https://github.com/parndt) and [Mark Haylock](https://github.com/mhaylock)
+* Supporting the new Google Analytics 'site speed' feature. [David Jones](https://github.com/djones)
+* Implemented `:translator` role which allows a particular user access only to translate pages. [Philip Arndt](https://github.com/parndt)
+* Added support for `Dragonfly 0.9.0` which uses the 'fog' gem. [Jesper Hvirring Henriksen](https://github.com/hvirring)
+* Updated all `refinery/admin.js` functions to make use of 'initialised'. [Mark Haylock](https://github.com/mhaylock)
+* Using SEO form from `seo_meta` inside pages' advanced options rather than having it duplicated in the RefineryCMS codebase too. [Uģis Ozols](https://github.com/ugisozols)
+* [See full list](https://github.com/resolve/refinerycms/compare/0.9.9.21...0.9.9.22)
+
+## 0.9.9.21 [03 May 2011]
+
+* Fixed issue with MySQL2 gem complaining about us being on Rails 3 by specifying `'~> 0.2.7'` in the Gemfile of a generated application. [Philip Arndt](https://github.com/parndt)
+* `/registrations` is now `/users`. [Philip Arndt](https://github.com/parndt)
+* Added Finnish translation. [Veeti Paananen](https://github.com/veeti)
+* Allowed `data` and `data-` attributes in WYMeditor tags using HTML view. [Philip Arndt](https://github.com/parndt)
+* [See full list](https://github.com/resolve/refinerycms/compare/0.9.9.20...0.9.9.21)
+
+## 0.9.9.20 [28 April 2011]
+
+* Improved performance of the menu rendering. [Philip Arndt](https://github.com/parndt)
+* Fixed UI to allow for how different languages display on the login screen. [Marian André](https://github.com/bitflut)
+* Vastly improved specs & spec coverage. [Uģis Ozols](https://github.com/ugisozols)
+* Upgraded to `jQuery 1.5.2` and `Dragonfly 0.8.4`. [Philip Arndt](https://github.com/parndt)
+* [See full list](https://github.com/resolve/refinerycms/compare/0.9.9.19...0.9.9.20)
+
+## 0.9.9.19 [22 April 2011]
+
+* Removed `rdoc` dependency. [Philip Arndt](https://github.com/parndt)
+* Migrate to stable Rails 3.0.7. [Josef Šimánek](https://github.com/simi)
+* Use `let()` in rspec specs. [Uģis Ozols](https://github.com/ugisozols)
+* [See full list](https://github.com/resolve/refinerycms/compare/0.9.9.18...0.9.9.19)
+
 ## 0.9.9.18 [16 April 2011]
 
 * Fixed a backward incompatibility. [Josef Šimánek](https://github.com/simi)

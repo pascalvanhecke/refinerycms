@@ -11,6 +11,7 @@ doc/api
 doc/app
 .yardoc
 .yardopts
+coverage
 
 # Public Uploads
 public/system/*
@@ -49,6 +50,7 @@ nbproject
 
 # Rubinius
 *.rbc
+*.rbx
 
 # Vim
 *.swp
@@ -74,13 +76,17 @@ capybara-*html
 .rvmrc
 .rvmrc.*
 
+#Gemfile's lock file
+Gemfile.lock
+
 # REFINERY CMS DEVELOPMENT ====================================================
 # Always keep this section at the bottom.
 
 config/database.yml
-config/amazon_s3.yml
 config/rackspace_cloudfiles.yml
 your_*.*
 db/schema.rb
+public/refinery
+config/ideal_load_path
 
 # END REFINERY CMS DEVELOPMENT =================================================

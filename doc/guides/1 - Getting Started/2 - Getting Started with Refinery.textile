@@ -8,7 +8,7 @@ This guide covers getting up and running with Refinery CMS. After reading it, yo
 
 endprologue.
 
-WARNING. This guide is based on Refinery CMS 0.9.9.16 so some of the code shown here may not work in earlier versions of Refinery.
+WARNING. This guide is based on Refinery CMS 1.0.8 so some of the code shown here may not work in earlier versions of Refinery.
 
 h3. Guide Assumptions
 
@@ -22,7 +22,7 @@ TIP: Ruby 1.9.1 is not usable because it outright segfaults on Rails 3.0, so if 
 * A working installation of the "SQLite3 Database":http://www.sqlite.org
 * A working installation of "ImageMagick":http://www.imagemagick.org/script/install-source.php
 
-TIP: On Linux, ImageMagick is usually included by default. On Mac OS X, use this "install script":https://github.com/maddox/magick-installer.
+TIP: If you don't already have these things, then you will need to follow the "Installing Refinery Prerequisites":/guides/installing-refinery-prerequisites guide.
 
 TIP: It is recommended that developers use RVM to manage Ruby versions and gems. Once RVM is installed on your system, and you've created a gemset for the project, create an .rvmrc file in the site's root directory. Its contents should look something like:
 
@@ -33,7 +33,7 @@ rvm use --create ruby-1.9.2@refinery
 Refinery is a Ruby on Rails web application. If you have no prior experience with Rails, you will find a very steep learning curve diving straight into Refinery.  There are some good free resources on the Internet for learning Rails, including:
 
 * "Getting Started with Rails":http://guides.rubyonrails.org/getting_started.html
-* "Rails for Zombies":http://railsforzombies.org/labs
+* "Rails for Zombies":http://railsforzombies.org
 
 h3. What is Refinery CMS?
 
@@ -96,6 +96,8 @@ NOTE: This step may take some time to load as it needs to download and install a
 
 TIP: You can see all of the switches that the +refinerycms+ command accepts by running +refinerycms+ with no options or arguements.
 
+TIP: You can run <tt>$ refinerycms rickrockstar -r 3.0.9</tt> to generate a refinery stack with any specific version of rails you need.
+
 This will create a new Rails application with Refinery built in called Rick Rock Star in a directory called +rickrockstar+. It also automatically runs +bundle install+ which will find and install all Refinery's ruby gem dependencies. Finally, it creates your database and seeds it with some basic defaults to get you started.
 
 NOTE: In this guide we are using an SQLite3 database for data storage, because it is a zero configuration database that just works. Refinery also supports MySQL and PostgreSQL "out of the box".
@@ -107,6 +109,16 @@ $ cd rickrockstar
 </shell>
 
 Open up that folder and explore its contents. You'll notice what you have is a very standard Rails application.
+
+h4. Running the tests
+
+At your application root:
+
+<shell>
+$ bundle exec rake
+</shell>
+
+This will run cucumber and rspec tests. If tests don't run, check *"this guide":/guides/how-to-enable-testing-in-your-application*.
 
 h3. Hello, Refinery!
 
@@ -182,7 +194,7 @@ So as you would expect the view for this action is located in +app/views/pages/s
 
 h4. Overriding your first view
 
-Refinery comes with a rake task called +refinery:override+ which allows you to copy files out of Refinery and into your own application to change. Let's override the pages show view:
+Refinery comes with a rake task called +refinery:override+ which allows you to copy files out of Refinery and into your own application to change. To see a list of possible commands simply run <tt>rake refinery:override</tt> in the console. Let's override the pages show view:
 
 <shell>
 $ rake refinery:override view=pages/show
@@ -205,10 +217,10 @@ Replace the contents of +app/views/pages/show.html.erb+ with this:
 
 <erb>
 <section id='body_content'>
-  <%=raw @page[:body] %>
+  <%=raw @page.content_for(:body) %>
 </section>
 <section id='side_body_content'>
-  <%=raw @page[:side_body] %>
+  <%=raw @page.content_for(:side_body) %>
 </section>
 </erb>
 
@@ -223,7 +235,7 @@ When you edit the about page you'll see something like this:
 You'll notice two tabs on the page "Body" and "Side Body". These are +Page Parts+, or in other words a single piece of content attached to this page that you can render in your view. There is a "Body" tab with some content on this screen, to render that same content in your view you put:
 
 <erb>
-<%=raw @page[:body] %>
+<%=raw @page.content_for(:body) %>
 </erb>
 
 h4. Styling your views
@@ -271,7 +283,9 @@ body {
 }
 </erb>
 
-TIP: When on the home page of your site, Refinery automatically loads an extra stylesheet located in +public/stylesheets/home.css+ as often sites have a different style on the home page.
+TIP: When on the home page of your site, Refinery automatically loads an extra stylesheet located in +public/stylesheets/home.css+ as often sites have a different style on the home page. 
+
+TIP: Note that 'refinery/application.css' is a stylesheet located in the refinery folder, which is in the refinerycms gem. Without it, front end pages do not include refinery/applications.css by default. Feel free to leave out this import.
 
 Now when you view your front end at "http://localhost:3000":http://localhost:3000 you'll notice your site has a grey background, with a horizontal menu and two white content areas.
 
@@ -421,7 +435,7 @@ protected
 
   def find_all_events
     # Order by event date
-    @events = Event.find(:all, :order => "date DESC")
+    @events = Event.order("date DESC")
   end
 
   # code

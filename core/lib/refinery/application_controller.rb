@@ -25,7 +25,7 @@ module Refinery
 
         c.protect_from_forgery # See ActionController::RequestForgeryProtection
 
-        c.send :include, Crud # basic create, read, update and delete methods
+        c.send :include, ::Refinery::Crud # basic create, read, update and delete methods
 
         c.send :before_filter, :find_pages_for_menu,
                                :show_welcome_page?
@@ -57,11 +57,11 @@ module Refinery
       end
 
       def from_dialog?
-        params[:dialog] == "true" or params[:modal] == "true"
+        params[:dialog] == 'true' or params[:modal] == 'true'
       end
 
       def home_page?
-        root_path == request.path
+        root_path =~ /^#{request.path}\/?/
       end
 
       def just_installed?
@@ -80,7 +80,7 @@ module Refinery
 
       # get all the pages to be displayed in the site menu.
       def find_pages_for_menu
-        raise NotImplementedError, "Please implement protected method find_pages_for_menu"
+        raise NotImplementedError, 'Please implement protected method find_pages_for_menu'
       end
 
       # use a different model for the meta information.
@@ -90,8 +90,8 @@ module Refinery
       end
 
       def show_welcome_page?
-        if just_installed? and %w(registrations).exclude?(controller_name)
-          render :template => "/welcome", :layout => "login"
+        if just_installed? and controller_name != 'users'
+          render :template => '/welcome', :layout => 'login'
         end
       end
 

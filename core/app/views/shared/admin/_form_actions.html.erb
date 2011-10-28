@@ -32,14 +32,14 @@
     delete_title        ||= nil
     delete_confirmation ||= nil
     delete_button_id    ||= "delete_button"
-    delete_url          ||= eval("admin_#{f.object_name}_url(#{f.object.id})")
+    delete_url          ||= eval("admin_#{f.object_name}_path(#{f.object.id})")
   end
 
   paginate_collection = nil
   if (paginate ||= {}).length > 0 && paginate.keys.include?(:collection)
     paginate_collection = paginate.delete(:collection)
   end
-  paginate.delete(:url) # We used to have a LinkRenderer that did this
+  paginate.delete(:url)
 -%>
 <% if from_dialog? %>
 <input type='hidden' name='modal' value='true' />

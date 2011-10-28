@@ -2,7 +2,50 @@ require 'globalize3'
 
 class Page < ActiveRecord::Base
 
-  translates :title, :meta_keywords, :meta_description, :browser_title, :custom_title if self.respond_to?(:translates)
+  # when a dialog pops up to link to a page, how many pages per page should there be
+  PAGES_PER_DIALOG = 14
+
+  # when listing pages out in the admin area, how many pages should show per page
+  PAGES_PER_ADMIN_INDEX = 20
+
+  # when collecting the pages path how is each of the pages seperated?
+  PATH_SEPARATOR = " - "
+
+  if self.respond_to?(:translates)
+    translates :title, :custom_title, :meta_keywords, :meta_description, :browser_title, :include => :seo_meta
+
+    # Set up support for meta tags through translations.
+    if defined?(::Page::Translation)
+      attr_accessible :title
+      # set allowed attributes for mass assignment
+      ::Page::Translation.send :attr_accessible, :browser_title, :meta_description,
+                                                 :meta_keywords, :locale
+
+      if ::Page::Translation.table_exists?
+        def translation
+          if @translation.nil? or @translation.try(:locale) != ::Globalize.locale
+            @translation = translations.with_locale(::Globalize.locale).first
+            @translation ||= translations.build(:locale => ::Globalize.locale)
+          end
+
+          @translation
+        end
+
+        # Instruct the Translation model to have meta tags.
+        ::Page::Translation.send :is_seo_meta
+
+        fields = ::SeoMeta.attributes.keys.reject{|f|
+          self.column_names.map(&:to_sym).include?(f)
+        }.map{|a| [a, :"#{a}="]}.flatten
+        delegate *(fields << {:to => :translation})
+        after_save proc {|m| m.translation.save}
+      end
+    end
+
+    before_create :ensure_locale, :if => proc { |c|
+      ::Refinery.i18n_enabled?
+    }
+  end
 
   attr_accessible :id, :deletable, :link_url, :menu_match, :meta_keywords,
                   :skip_to_first_child, :position, :show_in_menu, :draft,
@@ -10,39 +53,11 @@ class Page < ActiveRecord::Base
                   :custom_title_type, :parent_id, :custom_title,
                   :created_at, :updated_at, :page_id
 
-  # Set up support for meta tags through translations.
-  if defined?(::Page::Translation)
-    attr_accessible :title
-    # set allowed attributes for mass assignment
-    ::Page::Translation.module_eval do
-      attr_accessible :browser_title, :meta_description, :meta_keywords,
-                      :locale
-    end
-    if ::Page::Translation.table_exists?
-      def translation
-        if @translation.nil? or @translation.try(:locale) != ::Globalize.locale
-          @translation = translations.with_locale(::Globalize.locale).first
-          @translation ||= translations.build(:locale => ::Globalize.locale)
-        end
-
-        @translation
-      end
-
-    # Instruct the Translation model to have meta tags.
-    ::Page::Translation.send :is_seo_meta
-
-      # Delegate all SeoMeta attributes to the active translation.
-      fields = ::SeoMeta.attributes.keys.map{|a| [a, :"#{a}="]}.flatten
-      fields << {:to => :translation}
-      delegate *fields
-      after_save proc {|m| m.translation.save}
-    end
-  end
-
   attr_accessor :locale # to hold temporarily
   validates :title, :presence => true
 
-  acts_as_nested_set
+  # Docs for acts_as_nested_set https://github.com/collectiveidea/awesome_nested_set
+  acts_as_nested_set :dependent => :destroy # rather than :delete_all
 
   # Docs for friendly_id http://github.com/norman/friendly_id
   has_friendly_id :title, :use_slug => true,
@@ -56,7 +71,7 @@ class Page < ActiveRecord::Base
            :order => "position ASC",
            :inverse_of => :page,
            :dependent => :destroy,
-           :include => :translations
+           :include => ((:translations) if defined?(::PagePart::Translation))
 
   accepts_nested_attributes_for :parts, :allow_destroy => true
 
@@ -65,38 +80,36 @@ class Page < ActiveRecord::Base
                               :custom_title, :browser_title, :all_page_part_content]
 
   before_destroy :deletable?
-  after_save :reposition_parts!, :invalidate_child_cached_url, :expire_page_caching
+  after_save :reposition_parts!, :invalidate_cached_urls, :expire_page_caching
   after_destroy :expire_page_caching
 
   # Wrap up the logic of finding the pages based on the translations table.
-  scope :with_globalize, lambda {|t|
-    if defined?(::Page::Translation)
-      t = {:locale => Globalize.locale}.merge(t || {})
-      where(:id => ::Page::Translation.where(t).select('page_id AS id'))
-    else
-      where(t)
+  if defined?(::Page::Translation)
+    def self.with_globalize(conditions = {})
+      conditions = {:locale => Globalize.locale}.merge(conditions)
+      globalized_conditions = {}
+      conditions.keys.each do |key|
+        if (translated_attribute_names.map(&:to_s) | %w(locale)).include?(key.to_s)
+          globalized_conditions["#{self.translation_class.table_name}.#{key}"] = conditions.delete(key)
+        end
+      end
+      # A join implies readonly which we don't really want.
+      joins(:translations).where(globalized_conditions).where(conditions).readonly(false)
     end
-  }
+  else
+    def self.with_globalize(conditions = {})
+      where(conditions)
+    end
+  end
 
   scope :live, where(:draft => false)
-  scope :by_title, lambda {|t| with_globalize(:title => t)}
+  scope :by_title, proc {|t| with_globalize(:title => t)}
 
   # Shows all pages with :show_in_menu set to true, but it also
   # rejects any page that has not been translated to the current locale.
   # This works using a query against the translated content first and then
   # using all of the page_ids we further filter against this model's table.
-  scope :in_menu, lambda {
-    where(:show_in_menu => true).with_globalize({})
-  }
-
-  # when a dialog pops up to link to a page, how many pages per page should there be
-  PAGES_PER_DIALOG = 14
-
-  # when listing pages out in the admin area, how many pages should show per page
-  PAGES_PER_ADMIN_INDEX = 20
-
-  # when collecting the pages path how is each of the pages seperated?
-  PATH_SEPARATOR = " - "
+  scope :in_menu, proc { where(:show_in_menu => true).with_globalize }
 
   # Am I allowed to delete this page?
   # If a link_url is set we don't want to break the link so we don't allow them to delete
@@ -116,19 +129,17 @@ class Page < ActiveRecord::Base
   # Before destroying a page we check to see if it's a deletable page or not
   # Refinery system pages are not deletable.
   def destroy
-    if deletable?
-      super
-    else
-      unless Rails.env.test?
-        # give useful feedback when trying to delete from console
-        puts "This page is not deletable. Please use .destroy! if you really want it deleted "
-        puts "unset .link_url," if link_url.present?
-        puts "unset .menu_match," if menu_match.present?
-        puts "set .deletable to true" unless deletable
-      end
+    return super if deletable?
 
-      return false
+    unless Rails.env.test?
+      # give useful feedback when trying to delete from console
+      puts "This page is not deletable. Please use .destroy! if you really want it deleted "
+      puts "unset .link_url," if link_url.present?
+      puts "unset .menu_match," if menu_match.present?
+      puts "set .deletable to true" unless deletable
     end
+
+    return false
   end
 
   # If you want to destroy a page that is set to be not deletable this is the way to do it.
@@ -146,7 +157,7 @@ class Page < ActiveRecord::Base
     # Override default options with any supplied.
     options = {:reversed => true}.merge(options)
 
-    unless parent.nil?
+    unless parent_id.nil?
       parts = [title, parent.path(options)]
       parts.reverse! if options[:reversed]
       parts.join(PATH_SEPARATOR)
@@ -173,7 +184,7 @@ class Page < ActiveRecord::Base
   end
 
   def link_url_localised?
-    return link_url unless defined?(::Refinery::I18n)
+    return link_url unless ::Refinery.i18n_enabled?
 
     current_url = link_url
 
@@ -229,7 +240,7 @@ class Page < ActiveRecord::Base
   end
 
   def cache_key
-    [Refinery.base_cache_key, ::I18n.locale, super].compact.join('/')
+    [Refinery.base_cache_key, ::I18n.locale, to_param].compact.join('/')
   end
 
   # Returns true if this page is "published"
@@ -249,12 +260,25 @@ class Page < ActiveRecord::Base
 
   # Returns true if this page is the home page or links to it.
   def home?
-    link_url == "/"
+    link_url == '/'
   end
 
   # Returns all visible sibling pages that can be rendered for the menu
   def shown_siblings
     siblings.reject(&:not_in_menu?)
+  end
+
+  def to_refinery_menu_item
+    {
+      :id => id,
+      :lft => lft,
+      :menu_match => menu_match,
+      :parent_id => parent_id,
+      :rgt => rgt,
+      :title => (page_title if respond_to?(:page_title)) || title,
+      :type => self.class.name,
+      :url => url
+    }
   end
 
   class << self
@@ -267,9 +291,7 @@ class Page < ActiveRecord::Base
     # the current frontend locale is different to the current one set by ::I18n.locale.
     # This terminates in a false if i18n engine is not defined or enabled.
     def different_frontend_locale?
-      defined?(::Refinery::I18n) &&
-        ::Refinery::I18n.enabled? &&
-        ::Refinery::I18n.current_frontend_locale != ::I18n.locale
+      ::Refinery.i18n_enabled? && ::Refinery::I18n.current_frontend_locale != ::I18n.locale
     end
 
     # Returns how many pages per page should there be when paginating pages
@@ -285,7 +307,8 @@ class Page < ActiveRecord::Base
       begin
         Rails.cache.delete_matched(/.*pages.*/)
       rescue NotImplementedError
-        warn "**** [REFINERY] The cache store you are using is not compatible with Rails.cache#delete_matched so please disable caching to ensure proper operation. ***"
+        Rails.cache.clear
+        warn "**** [REFINERY] The cache store you are using is not compatible with Rails.cache#delete_matched - clearing entire cache instead ***"
       end
     end
   end
@@ -293,15 +316,10 @@ class Page < ActiveRecord::Base
   # Accessor method to get a page part from a page.
   # Example:
   #
-  #    Page.first[:body]
+  #    Page.first.content_for(:body)
   #
   # Will return the body page part of the first page.
-  def [](part_title)
-    # Allow for calling attributes with [] shorthand (eg page[:parent_id])
-    return super if self.attributes.has_key?(part_title.to_s)
-
-    # the way that we call page parts seems flawed, will probably revert to page.parts[:title] in a future release.
-    # self.parts is already eager loaded so we can now just grab the first element matching the title we specified.
+  def content_for(part_title)
     part = self.parts.detect do |part|
       part.title.present? and #protecting against the problem that occurs when have nil title
       part.title == part_title.to_s or
@@ -309,6 +327,20 @@ class Page < ActiveRecord::Base
     end
 
     part.try(:body)
+  end
+
+  def [](part_title)
+    # Allow for calling attributes with [] shorthand (eg page[:parent_id])
+    return super if self.respond_to?(part_title.to_s.to_sym) or self.attributes.has_key?(part_title.to_s)
+
+    Refinery.deprecate({
+      :what => "page[#{part_title.inspect}]",
+      :when => '1.1',
+      :replacement => "page.content_for(#{part_title.inspect})",
+      :caller => caller
+    })
+
+    content_for(part_title)
   end
 
   # In the admin area we use a slightly different title to inform the which pages are draft or hidden pages
@@ -346,12 +378,19 @@ class Page < ActiveRecord::Base
 
 private
 
-  def invalidate_child_cached_url
+  def invalidate_cached_urls
     return true unless self.class.use_marketable_urls?
 
-    children.each do |child|
-      Rails.cache.delete(child.url_cache_key)
-      Rails.cache.delete(child.path_cache_key)
+    [self, children].flatten.each do |page|
+      Rails.cache.delete(page.url_cache_key)
+      Rails.cache.delete(page.path_cache_key)
+    end
+  end
+  alias_method :invalidate_child_cached_url, :invalidate_cached_urls
+
+  def ensure_locale
+    unless self.translations.present?
+      self.translations.build :locale => ::Refinery::I18n.default_frontend_locale
     end
   end
 
